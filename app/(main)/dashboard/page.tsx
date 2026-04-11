@@ -1,8 +1,10 @@
-import { auth, signOut } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getVariablesByUserId } from "@/server/queries";
 import { VariableTable } from "./variable-table";
 import { CreateVariable } from "./create-variable";
+import { UserMenu } from "./user-menu";
+import Navbar from "@/components/navbar";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -14,27 +16,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen">
       <header className="border-b">
-        <div className="container mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
-          <h1 className="text-lg font-semibold">Variable Store</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
-              {session.user.name ?? session.user.email}
-            </span>
-            <form
-              action={async () => {
-                "use server";
-                await signOut({ redirectTo: "/" });
-              }}
-            >
-              <button
-                type="submit"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Sign out
-              </button>
-            </form>
-          </div>
-        </div>
+        <Navbar />
       </header>
       <main className="container mx-auto max-w-4xl px-4 py-8">
         <div className="mb-8 flex items-center justify-between">

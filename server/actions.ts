@@ -2,13 +2,17 @@
 
 import { db } from "@/db";
 import { variables } from "@/db/schema";
-import { auth } from "@/lib/auth";
+import { auth, signOut } from "@/lib/auth";
 import {
   createVariableSchema,
   updateVariableSchema,
 } from "@/lib/validations";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+
+export async function signOutAction() {
+  await signOut({ redirectTo: "/" });
+}
 
 export async function createVariable(formData: FormData) {
   const session = await auth();

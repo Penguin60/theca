@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Variable Store",
+  title: "Theca",
   description: "Create variables and share them via public URLs",
 };
 

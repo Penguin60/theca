@@ -20,7 +20,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [GitHub],
   callbacks: {
     async signIn({ user, profile }) {
-      // Store the GitHub login (globally unique) as the username
       if (profile?.login && user.id) {
         await db
           .update(users)

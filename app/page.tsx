@@ -9,7 +9,7 @@ export default async function Home() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center">
       <div className="max-w-md space-y-6 text-center">
-        <h1 className="text-4xl font-bold">Variable Store</h1>
+        <h1 className="text-4xl font-bold">Theca</h1>
         <p className="text-lg text-muted-foreground">
           Create named variables and share them via public URLs that return
           plain text. Update a value in the dashboard and the URL reflects it

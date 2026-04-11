@@ -9,7 +9,7 @@ export default async function SignInPage() {
     <div className="flex min-h-screen items-center justify-center">
       <div className="w-full max-w-sm space-y-6 text-center">
         <div>
-          <h1 className="text-2xl font-bold">Variable Store</h1>
+          <h1 className="text-2xl font-bold">Theca</h1>
           <p className="mt-2 text-muted-foreground">
             Create variables and share them via public URLs
           </p>
