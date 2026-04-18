@@ -1,4 +1,5 @@
 import { getPublicVariable } from "@/server/queries";
+import { request } from "http";
 
 const SHARED_HEADERS = {
   "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
@@ -15,11 +16,61 @@ function escapeXml(value: string) {
     .replace(/'/g, "&apos;");
 }
 
-function renderSvg(value: string) {
-  const width = value.length * 8 + 16;
-  const height = 24;
+type SvgOptions = {
+  bg?: string;
+  color: string;
+  font: string;
+  size: number;
+};
+
+const DEFAULT_OPTIONS: SvgOptions = {
+  color: "#24292f",
+  font: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+  size: 14,
+};
+
+const COLOR_PATTERN = /^(#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|[a-zA-Z]{1,32})$/;
+const FONT_PATTERN = /^[a-zA-Z0-9 ,.\-'"]{1,200}$/;
+
+function parseSvgOptions(searchParams: URLSearchParams): SvgOptions {
+  const opts: SvgOptions = { ...DEFAULT_OPTIONS };
+
+  const bg = searchParams.get("bg");
+  if (bg && COLOR_PATTERN.test(bg)) opts.bg = bg;
+
+  const color = searchParams.get("color");
+  if (color && COLOR_PATTERN.test(color)) opts.color = color;
+
+  const font = searchParams.get("font");
+  if (font && FONT_PATTERN.test(font)) opts.font = font;
+
+  const size = searchParams.get("size");
+  if (size) {
+    const n = Number(size);
+    if (Number.isFinite(n) && n >= 4 && n <= 200) opts.size = n;
+  }
+
+  return opts;
+}
+
+function renderSvg(value: string, opts: SvgOptions) {
+  const { size, color, font, bg } = opts;
+  const charWidth = size * 0.6;
+  const padX = size * 0.6;
+  const padY = size * 0.3;
+  const width = Math.ceil(value.length * charWidth + padX * 2);
+  const height = Math.ceil(size + padY * 2);
+  const baseline = Math.round(padY + size * 0.85);
+
   const text = escapeXml(value);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><text x="8" y="17" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#24292f">${text}</text></svg>`;
+  const fontAttr = escapeXml(font);
+  const colorAttr = escapeXml(color);
+  const radius = Math.round(size * 0.3);
+  const bgRect = bg
+    ? `<rect width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="${escapeXml(bg)}"/>`
+    : "";
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${bgRect}<text x="${padX}" y="${baseline}" font-family="${fontAttr}" font-size="${size}" fill="${colorAttr}">${text}</text></svg>`;
 }
 
 export async function GET(
@@ -36,7 +87,9 @@ export async function GET(
   }
 
   if (wantsSvg) {
-    return new Response(renderSvg(variable.value), {
+    const { searchParams } = new URL(_request.url);
+    const opts = parseSvgOptions(searchParams);
+    return new Response(renderSvg(variable.value, opts), {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",
         ...SHARED_HEADERS,
