@@ -15,7 +15,18 @@ import { createVariable } from "@/server/actions";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
-export function CreateVariable() {
+interface FolderItem {
+  id: string;
+  name: string;
+}
+
+export function CreateVariable({
+  folders,
+  defaultFolderId,
+}: {
+  folders: FolderItem[];
+  defaultFolderId: string | null;
+}) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -72,6 +83,27 @@ export function CreateVariable() {
               <p className="text-sm text-destructive">{errors.value[0]}</p>
             )}
           </div>
+          {folders.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="folderId">Folder</Label>
+              <select
+                id="folderId"
+                name="folderId"
+                defaultValue={defaultFolderId ?? ""}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">Uncategorized</option>
+                {folders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+              {errors.folderId && (
+                <p className="text-sm text-destructive">{errors.folderId[0]}</p>
+              )}
+            </div>
+          )}
           <Button type="submit" className="w-full" disabled={isPending}>
             {isPending ? "Creating..." : "Create"}
           </Button>

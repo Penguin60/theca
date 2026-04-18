@@ -1,14 +1,33 @@
 import "server-only";
 import { db } from "@/db";
-import { variables, users } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { variables, users, folders } from "@/db/schema";
+import { eq, and, desc, isNull, asc } from "drizzle-orm";
 
-export async function getVariablesByUserId(userId: string) {
+export async function getVariablesByUserId(
+  userId: string,
+  filter?: { folderId: string | null }
+) {
+  const conditions = [eq(variables.userId, userId)];
+  if (filter) {
+    conditions.push(
+      filter.folderId === null
+        ? isNull(variables.folderId)
+        : eq(variables.folderId, filter.folderId)
+    );
+  }
   return db
     .select()
     .from(variables)
-    .where(eq(variables.userId, userId))
+    .where(and(...conditions))
     .orderBy(desc(variables.updatedAt));
+}
+
+export async function getFoldersByUserId(userId: string) {
+  return db
+    .select()
+    .from(folders)
+    .where(eq(folders.userId, userId))
+    .orderBy(asc(folders.name));
 }
 
 export async function getPublicVariable(username: string, key: string) {

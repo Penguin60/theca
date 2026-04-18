@@ -66,6 +66,19 @@ export const verificationTokens = pgTable(
 
 // App tables
 
+export const folders = pgTable(
+  "folders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("folders_user_id_name_idx").on(table.userId, table.name)]
+);
+
 export const variables = pgTable(
   "variables",
   {
@@ -73,6 +86,9 @@ export const variables = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    folderId: uuid("folder_id").references(() => folders.id, {
+      onDelete: "set null",
+    }),
     key: text("key").notNull(),
     value: text("value").notNull(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
