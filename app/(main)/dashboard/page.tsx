@@ -51,22 +51,16 @@ export default async function DashboardPage({
         </Navbar>
       </header>
       <main className="container mx-auto max-w-5xl px-4 py-8">
-        <div className="mb-8 flex items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
-            Public URL format:{" "}
-            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
-              /v/{username}/your-key
-            </code>
-          </p>
-          <CreateVariable
-            folders={folders}
-            defaultFolderId={defaultFolderId}
-          />
-        </div>
         <VariableTable
           variables={vars}
           username={username}
           folders={folders}
+          createSlot={
+            <CreateVariable
+              folders={folders}
+              defaultFolderId={defaultFolderId}
+            />
+          }
         />
       </main>
     </div>

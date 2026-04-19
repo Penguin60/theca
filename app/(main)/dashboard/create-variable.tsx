@@ -48,9 +48,12 @@ export function CreateVariable({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            New Variable
+          <Button
+            size="icon"
+            aria-label="New variable"
+            className="size-10 shrink-0 cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
           </Button>
         }
       />

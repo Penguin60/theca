@@ -43,8 +43,13 @@ import {
   Inbox,
   Folder,
   MoreHorizontal,
+  Image as ImageIcon,
+  Search,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
+import { SvgUrlDialog } from "./svg-url-dialog";
 
 interface Variable {
   id: string;
@@ -63,22 +68,56 @@ export function VariableTable({
   variables,
   username,
   folders,
+  createSlot,
 }: {
   variables: Variable[];
   username: string;
   folders: FolderItem[];
+  createSlot?: React.ReactNode;
 }) {
+  const PAGE_SIZE = 10;
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [isPending, startTransition] = useTransition();
 
-  const allIds = useMemo(() => variables.map((v) => v.id), [variables]);
+  const filteredVariables = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return variables;
+    return variables.filter(
+      (v) =>
+        v.key.toLowerCase().includes(q) ||
+        v.value.toLowerCase().includes(q)
+    );
+  }, [variables, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredVariables.length / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const pageVariables = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredVariables.slice(start, start + PAGE_SIZE);
+  }, [filteredVariables, page]);
+
+  const pageIds = useMemo(() => pageVariables.map((v) => v.id), [pageVariables]);
+  const allKnownIds = useMemo(() => variables.map((v) => v.id), [variables]);
+
   const selectedCount = selected.size;
-  const allSelected = selectedCount > 0 && selectedCount === allIds.length;
-  const someSelected = selectedCount > 0 && !allSelected;
+  const visibleSelectedCount = pageIds.filter((id) => selected.has(id)).length;
+  const allSelected =
+    pageIds.length > 0 && visibleSelectedCount === pageIds.length;
+  const someSelected = visibleSelectedCount > 0 && !allSelected;
 
   useEffect(() => {
     if (selected.size === 0) return;
-    const valid = new Set(allIds);
+    const valid = new Set(allKnownIds);
     let changed = false;
     const next = new Set<string>();
     for (const id of selected) {
@@ -86,7 +125,7 @@ export function VariableTable({
       else changed = true;
     }
     if (changed) setSelected(next);
-  }, [allIds, selected]);
+  }, [allKnownIds, selected]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -98,9 +137,15 @@ export function VariableTable({
   }
 
   function toggleAll() {
-    setSelected((prev) =>
-      prev.size === allIds.length ? new Set() : new Set(allIds)
-    );
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        pageIds.forEach((id) => next.delete(id));
+      } else {
+        pageIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
   }
 
   function clearSelection() {
@@ -141,17 +186,39 @@ export function VariableTable({
 
   if (variables.length === 0) {
     return (
-      <div className="rounded-md border border-dashed p-12 text-center">
-        <p className="text-muted-foreground">
-          No variables yet. Create your first one to get started.
-        </p>
+      <div className="space-y-3">
+        {createSlot && <div className="flex justify-end">{createSlot}</div>}
+        <div className="rounded-md border border-dashed p-12 text-center">
+          <p className="text-muted-foreground">
+            No variables yet. Create your first one to get started.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search variables..."
+            className="h-10 pl-8"
+          />
+        </div>
+        {createSlot}
+      </div>
+      {filteredVariables.length === 0 ? (
+        <div className="rounded-md border border-dashed p-12 text-center">
+          <p className="text-muted-foreground">No variables match your search.</p>
+        </div>
+      ) : (
+        <>
     <div className="rounded-md border">
-      <Table>
+      <Table className="text-[15px] [&_td]:py-3">
         <TableHeader>
           <TableRow>
             <TableHead className="w-[40px]">
@@ -170,7 +237,7 @@ export function VariableTable({
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-8 w-8"
+                      className="h-8 w-8 cursor-pointer"
                       disabled={selectedCount === 0 || isPending}
                       aria-label={
                         selectedCount > 0
@@ -219,7 +286,7 @@ export function VariableTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {variables.map((v) => (
+          {pageVariables.map((v) => (
             <VariableRow
               key={v.id}
               variable={v}
@@ -231,6 +298,40 @@ export function VariableTable({
           ))}
         </TableBody>
       </Table>
+    </div>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {filteredVariables.length} variable
+              {filteredVariables.length === 1 ? "" : "s"}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="cursor-pointer"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="cursor-pointer"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                aria-label="Next page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -274,6 +375,7 @@ function VariableRow({
   onToggle: () => void;
 }) {
   const [editOpen, setEditOpen] = useState(false);
+  const [svgOpen, setSvgOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const publicUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/v/${username}/${variable.key}`;
@@ -312,6 +414,12 @@ function VariableRow({
         onOpenChange={setEditOpen}
         variable={variable}
       />
+      <SvgUrlDialog
+        open={svgOpen}
+        onOpenChange={setSvgOpen}
+        username={username}
+        variableKey={variable.key}
+      />
     <TableRow data-state={selected ? "selected" : undefined}>
       <TableCell>
         <input
@@ -322,9 +430,15 @@ function VariableRow({
           className="h-4 w-4 cursor-pointer accent-foreground"
         />
       </TableCell>
-      <TableCell className="font-mono text-sm">{variable.key}</TableCell>
+      <TableCell className="font-mono">{variable.key}</TableCell>
       <TableCell>
-        <span className="block truncate max-w-[300px]">{variable.value}</span>
+        <span
+          onClick={handleCopy}
+          className="inline-block max-w-[300px] cursor-pointer truncate align-middle hover:text-muted-foreground"
+          title="Click to copy URL"
+        >
+          {variable.value}
+        </span>
       </TableCell>
       <TableCell>
         <DropdownMenu>
@@ -333,7 +447,7 @@ function VariableRow({
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-8 w-8"
+                className="h-8 w-8 cursor-pointer"
                 disabled={isPending}
                 aria-label="Actions"
               >
@@ -341,7 +455,7 @@ function VariableRow({
               </Button>
             }
           />
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="min-w-44">
             <DropdownMenuItem onClick={() => setEditOpen(true)}>
               <Pencil className="h-4 w-4" />
               Edit value
@@ -349,6 +463,10 @@ function VariableRow({
             <DropdownMenuItem onClick={handleCopy}>
               <Copy className="h-4 w-4" />
               Copy URL
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSvgOpen(true)}>
+              <ImageIcon className="h-4 w-4" />
+              Copy as SVG
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
