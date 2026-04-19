@@ -222,11 +222,13 @@ export function VariableTable({
         <TableHeader>
           <TableRow>
             <TableHead className="w-[40px]">
-              <HeaderCheckbox
-                checked={allSelected}
-                indeterminate={someSelected}
-                onChange={toggleAll}
-              />
+              <div className="flex items-center">
+                <HeaderCheckbox
+                  checked={allSelected}
+                  indeterminate={someSelected}
+                  onChange={toggleAll}
+                />
+              </div>
             </TableHead>
             <TableHead>Key</TableHead>
             <TableHead>Value</TableHead>
@@ -422,13 +424,15 @@ function VariableRow({
       />
     <TableRow data-state={selected ? "selected" : undefined}>
       <TableCell>
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={onToggle}
-          aria-label={`Select ${variable.key}`}
-          className="h-4 w-4 cursor-pointer accent-foreground"
-        />
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggle}
+            aria-label={`Select ${variable.key}`}
+            className="h-4 w-4 cursor-pointer accent-foreground"
+          />
+        </div>
       </TableCell>
       <TableCell className="font-mono">{variable.key}</TableCell>
       <TableCell>

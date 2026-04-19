@@ -103,7 +103,7 @@ export function SvgUrlDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="svg-color">Text color</Label>
+              <Label>Text color</Label>
               <div className="flex items-center gap-2">
                 <input
                   id="svg-color"
@@ -119,7 +119,7 @@ export function SvgUrlDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="svg-bg" className="flex items-center gap-2">
+              <Label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={bgEnabled}
@@ -144,7 +144,7 @@ export function SvgUrlDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="svg-font">Font</Label>
+              <Label>Font</Label>
               <Autocomplete
                 items={filteredFonts}
                 value={font}
@@ -154,7 +154,7 @@ export function SvgUrlDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="svg-size">Size</Label>
+              <Label>Size</Label>
               <Input
                 id="svg-size"
                 type="number"
@@ -170,7 +170,7 @@ export function SvgUrlDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="svg-url">URL</Label>
+            <Label>URL</Label>
             <div className="flex items-center gap-2">
               <Input
                 id="svg-url"
