@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Autocomplete } from "@/components/ui/autocomplete";
+import { ColorPicker } from "@/components/ui/color-picker";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,7 @@ export function SvgUrlDialog({
   const [font, setFont] = useState<string>(DEFAULTS.font);
   const [size, setSize] = useState(DEFAULTS.size);
   const [copied, setCopied] = useState(false);
+  const portalContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) {
@@ -84,6 +86,7 @@ export function SvgUrlDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
+        <div ref={portalContainerRef} className="absolute size-0" />
         <DialogHeader>
           <DialogTitle>Copy SVG URL</DialogTitle>
         </DialogHeader>
@@ -105,13 +108,7 @@ export function SvgUrlDialog({
             <div className="space-y-2">
               <Label>Text color</Label>
               <div className="flex items-center gap-2">
-                <input
-                  id="svg-color"
-                  type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="h-9 w-12 cursor-pointer rounded border"
-                />
+                <ColorPicker value={color} onChange={setColor} container={portalContainerRef} />
                 <span className="font-mono text-xs text-muted-foreground">
                   {color}
                 </span>
@@ -129,14 +126,7 @@ export function SvgUrlDialog({
                 Background
               </Label>
               <div className="flex items-center gap-2">
-                <input
-                  id="svg-bg"
-                  type="color"
-                  value={bg}
-                  onChange={(e) => setBg(e.target.value)}
-                  disabled={!bgEnabled}
-                  className="h-9 w-12 cursor-pointer rounded border disabled:cursor-not-allowed disabled:opacity-50"
-                />
+                <ColorPicker value={bg} onChange={setBg} disabled={!bgEnabled} container={portalContainerRef} />
                 <span className="font-mono text-xs text-muted-foreground">
                   {bgEnabled ? bg : "transparent"}
                 </span>
