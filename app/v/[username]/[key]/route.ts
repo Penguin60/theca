@@ -1,4 +1,6 @@
 import { getPublicVariable } from "@/server/queries";
+import { GOOGLE_FONTS_SET } from "@/lib/google-fonts";
+import opentype from "opentype.js";
 import { request } from "http";
 
 const SHARED_HEADERS = {
@@ -53,24 +55,67 @@ function parseSvgOptions(searchParams: URLSearchParams): SvgOptions {
   return opts;
 }
 
-function renderSvg(value: string, opts: SvgOptions) {
+const WOFF_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6) AppleWebKit/534.50 (KHTML, like Gecko) Version/5.1 Safari/534.50";
+
+async function fetchGoogleFont(family: string): Promise<opentype.Font | null> {
+  try {
+    const cssUrl = `https://fonts.googleapis.com/css?family=${encodeURIComponent(
+      family
+    )}`;
+    const cssRes = await fetch(cssUrl, {
+      headers: { "User-Agent": WOFF_UA },
+      next: { revalidate: 31536000 },
+    });
+    if (!cssRes.ok) return null;
+    const css = await cssRes.text();
+    const match = css.match(/url\((https?:\/\/[^)]+)\)/);
+    if (!match) return null;
+    const fontRes = await fetch(match[1], {
+      next: { revalidate: 31536000 },
+    });
+    if (!fontRes.ok) return null;
+    const buf = await fontRes.arrayBuffer();
+    return opentype.parse(buf);
+  } catch {
+    return null;
+  }
+}
+
+function renderSvg(value: string, opts: SvgOptions, googleFont: opentype.Font | null) {
   const { size, color, font, bg } = opts;
-  const charWidth = size * 0.6;
   const padX = size * 0.6;
   const padY = size * 0.3;
-  const width = Math.ceil(value.length * charWidth + padX * 2);
-  const height = Math.ceil(size + padY * 2);
-  const baseline = Math.round(padY + size * 0.85);
-
-  const text = escapeXml(value);
-  const fontAttr = escapeXml(font);
   const colorAttr = escapeXml(color);
+
+  let textWidth: number;
+  let textNode: string;
+
+  if (googleFont) {
+    textWidth = googleFont.getAdvanceWidth(value, size);
+    const baseline = padY + size * 0.85;
+    const path = googleFont.getPath(value, padX, baseline, size);
+    const text = escapeXml(value);
+    textNode =
+      `<path d="${path.toPathData(2)}" fill="${colorAttr}"/>` +
+      `<text x="${padX}" y="${baseline}" font-size="${size}" textLength="${textWidth}" lengthAdjust="spacingAndGlyphs" fill="transparent">${text}</text>`;
+  } else {
+    const charWidth = size * 0.6;
+    textWidth = value.length * charWidth;
+    const baseline = Math.round(padY + size * 0.85);
+    const text = escapeXml(value);
+    const fontAttr = escapeXml(font);
+    textNode = `<text x="${padX}" y="${baseline}" font-family="${fontAttr}" font-size="${size}" fill="${colorAttr}">${text}</text>`;
+  }
+
+  const width = Math.ceil(textWidth + padX * 2);
+  const height = Math.ceil(size + padY * 2);
   const radius = Math.round(size * 0.3);
   const bgRect = bg
     ? `<rect width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="${escapeXml(bg)}"/>`
     : "";
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${bgRect}<text x="${padX}" y="${baseline}" font-family="${fontAttr}" font-size="${size}" fill="${colorAttr}">${text}</text></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${bgRect}${textNode}</svg>`;
 }
 
 export async function GET(
@@ -89,7 +134,10 @@ export async function GET(
   if (wantsSvg) {
     const { searchParams } = new URL(_request.url);
     const opts = parseSvgOptions(searchParams);
-    return new Response(renderSvg(variable.value, opts), {
+    const googleFont = GOOGLE_FONTS_SET.has(opts.font)
+      ? await fetchGoogleFont(opts.font)
+      : null;
+    return new Response(renderSvg(variable.value, opts, googleFont), {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",
         ...SHARED_HEADERS,

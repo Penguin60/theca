@@ -1,32 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Autocomplete } from "@/components/ui/autocomplete";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Copy } from "lucide-react";
-import { toast } from "sonner";
-
-const FONT_OPTIONS = [
-  "sans-serif",
-  "serif",
-  "monospace",
-  "system-ui",
-  "Geist",
-  "Helvetica",
-] as const;
+import { Check, Copy } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { GOOGLE_FONTS } from "@/lib/google-fonts";
 
 const DEFAULTS = {
   color: "#24292f",
   bg: "#ffffff",
   bgEnabled: false,
-  font: "sans-serif",
+  font: "",
   size: 14,
 };
 
@@ -46,6 +39,7 @@ export function SvgUrlDialog({
   const [bgEnabled, setBgEnabled] = useState(DEFAULTS.bgEnabled);
   const [font, setFont] = useState<string>(DEFAULTS.font);
   const [size, setSize] = useState(DEFAULTS.size);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -54,8 +48,22 @@ export function SvgUrlDialog({
       setBgEnabled(DEFAULTS.bgEnabled);
       setFont(DEFAULTS.font);
       setSize(DEFAULTS.size);
+      setCopied(false);
     }
   }, [open]);
+
+  const filteredFonts = useMemo(() => {
+    const q = font.trim().toLowerCase();
+    if (!q) return GOOGLE_FONTS.slice(0, 50);
+    const out: string[] = [];
+    for (const name of GOOGLE_FONTS) {
+      if (name.toLowerCase().includes(q)) {
+        out.push(name);
+        if (out.length >= 50) break;
+      }
+    }
+    return out;
+  }, [font]);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const base = `${origin}/v/${username}/${variableKey}.svg`;
@@ -69,7 +77,8 @@ export function SvgUrlDialog({
 
   function handleCopy() {
     navigator.clipboard.writeText(url);
-    toast.success("SVG URL copied to clipboard");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   }
 
   return (
@@ -136,18 +145,12 @@ export function SvgUrlDialog({
 
             <div className="space-y-2">
               <Label htmlFor="svg-font">Font</Label>
-              <select
-                id="svg-font"
+              <Autocomplete
+                items={filteredFonts}
                 value={font}
-                onChange={(e) => setFont(e.target.value)}
-                className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                {FONT_OPTIONS.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setFont}
+                placeholder="Default"
+              />
             </div>
 
             <div className="space-y-2">
@@ -168,13 +171,35 @@ export function SvgUrlDialog({
 
           <div className="space-y-2">
             <Label htmlFor="svg-url">URL</Label>
-            <Input id="svg-url" value={url} readOnly className="font-mono text-xs" />
+            <div className="flex items-center gap-2">
+              <Input
+                id="svg-url"
+                value={url}
+                readOnly
+                className="flex-1 font-mono text-xs"
+              />
+              <Button
+                size="icon"
+                onClick={handleCopy}
+                aria-label="Copy URL"
+              >
+                <span className="relative inline-flex size-4 items-center justify-center">
+                  <Copy
+                    className={cn(
+                      "absolute inset-0 size-4 transition-all duration-200",
+                      copied ? "scale-50 opacity-0" : "scale-100 opacity-100"
+                    )}
+                  />
+                  <Check
+                    className={cn(
+                      "absolute inset-0 size-4 transition-all duration-200",
+                      copied ? "scale-100 opacity-100" : "scale-50 opacity-0"
+                    )}
+                  />
+                </span>
+              </Button>
+            </div>
           </div>
-
-          <Button className="w-full" onClick={handleCopy}>
-            <Copy className="h-4 w-4" />
-            Copy URL
-          </Button>
         </div>
       </DialogContent>
     </Dialog>
