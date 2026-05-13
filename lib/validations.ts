@@ -10,14 +10,25 @@ export const variableValueSchema = z
   .string()
   .max(10240, "Value must be 10KB or less");
 
+export const valueTypeSchema = z.enum(["text", "array"]);
+
+export const arrayItemSchema = z.string().max(1024, "Each item must be 1024 characters or less");
+
+export const arrayValueSchema = z
+  .array(arrayItemSchema)
+  .min(1, "Array must have at least one item")
+  .max(50, "Array must have 50 items or fewer");
+
 export const createVariableSchema = z.object({
   key: variableKeySchema,
   value: variableValueSchema,
+  valueType: valueTypeSchema.default("text"),
 });
 
 export const updateVariableSchema = z.object({
   id: z.string().uuid(),
   value: variableValueSchema,
+  valueType: valueTypeSchema.default("text"),
 });
 
 export const folderNameSchema = z

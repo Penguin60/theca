@@ -134,12 +134,25 @@ export async function GET(
   if (wantsSvg) {
     const { searchParams } = new URL(_request.url);
     const opts = parseSvgOptions(searchParams);
+    const displayValue =
+      variable.valueType === "array"
+        ? (JSON.parse(variable.value) as string[]).join(", ")
+        : variable.value;
     const googleFont = GOOGLE_FONTS_SET.has(opts.font)
       ? await fetchGoogleFont(opts.font)
       : null;
-    return new Response(renderSvg(variable.value, opts, googleFont), {
+    return new Response(renderSvg(displayValue, opts, googleFont), {
       headers: {
         "Content-Type": "image/svg+xml; charset=utf-8",
+        ...SHARED_HEADERS,
+      },
+    });
+  }
+
+  if (variable.valueType === "array") {
+    return new Response(variable.value, {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
         ...SHARED_HEADERS,
       },
     });

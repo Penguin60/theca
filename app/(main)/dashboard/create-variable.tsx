@@ -12,7 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { createVariable } from "@/server/actions";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface FolderItem {
@@ -30,22 +30,51 @@ export function CreateVariable({
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const [valueType, setValueType] = useState<"text" | "array">("text");
+  const [items, setItems] = useState<string[]>([""]);
+
+  function addItem() {
+    setItems((prev) => [...prev, ""]);
+  }
+
+  function removeItem(index: number) {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateItem(index: number, val: string) {
+    setItems((prev) => prev.map((item, i) => (i === index ? val : item)));
+  }
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) {
+      setErrors({});
+      setValueType("text");
+      setItems([""]);
+    }
+  }
 
   function handleSubmit(formData: FormData) {
     setErrors({});
+    if (valueType === "array") {
+      formData.set("value", JSON.stringify(items));
+      formData.set("valueType", "array");
+    } else {
+      formData.set("valueType", "text");
+    }
     startTransition(async () => {
       const result = await createVariable(formData);
       if (result?.error) {
         setErrors(result.error as Record<string, string[]>);
       } else {
-        setOpen(false);
+        handleOpenChange(false);
         toast.success("Variable created");
       }
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
           <Button
@@ -80,8 +109,70 @@ export function CreateVariable({
             </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="value">Value</Label>
-            <Input id="value" name="value" placeholder="Hello, world!" />
+            <div className="flex items-center justify-between">
+              <Label>Value</Label>
+              <div className="flex rounded-md border text-xs overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setValueType("text")}
+                  className={`px-2.5 py-1 cursor-pointer transition-colors ${
+                    valueType === "text"
+                      ? "bg-foreground text-background"
+                      : "hover:bg-muted"
+                  }`}
+                >
+                  Text
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setValueType("array")}
+                  className={`px-2.5 py-1 cursor-pointer transition-colors border-l ${
+                    valueType === "array"
+                      ? "bg-foreground text-background"
+                      : "hover:bg-muted"
+                  }`}
+                >
+                  Array
+                </button>
+              </div>
+            </div>
+            {valueType === "text" ? (
+              <Input id="value" name="value" placeholder="Hello, world!" />
+            ) : (
+              <div className="space-y-2">
+                {items.map((item, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      value={item}
+                      onChange={(e) => updateItem(index, e.target.value)}
+                      placeholder={`Item ${index + 1}`}
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="shrink-0 cursor-pointer"
+                      onClick={() => removeItem(index)}
+                      disabled={items.length === 1}
+                      aria-label="Remove item"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full cursor-pointer"
+                  onClick={addItem}
+                  disabled={items.length >= 50}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add item
+                </Button>
+              </div>
+            )}
             {errors.value && (
               <p className="text-sm text-destructive">{errors.value[0]}</p>
             )}

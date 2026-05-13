@@ -91,6 +91,7 @@ export const variables = pgTable(
     }),
     key: text("key").notNull(),
     value: text("value").notNull(),
+    valueType: text("value_type").notNull().default("text"),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [uniqueIndex("variables_user_id_key_idx").on(table.userId, table.key)]

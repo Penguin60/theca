@@ -47,6 +47,7 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SvgUrlDialog } from "./svg-url-dialog";
@@ -55,6 +56,7 @@ interface Variable {
   id: string;
   key: string;
   value: string;
+  valueType: string;
   folderId: string | null;
   updatedAt: Date;
 }
@@ -436,13 +438,17 @@ function VariableRow({
       </TableCell>
       <TableCell className="font-mono">{variable.key}</TableCell>
       <TableCell>
-        <span
-          onClick={handleCopy}
-          className="inline-block max-w-[300px] cursor-pointer truncate align-middle hover:text-muted-foreground"
-          title="Click to copy URL"
-        >
-          {variable.value}
-        </span>
+        {variable.valueType === "array" ? (
+          <ArrayPreview value={variable.value} onClick={handleCopy} />
+        ) : (
+          <span
+            onClick={handleCopy}
+            className="inline-block max-w-[300px] cursor-pointer truncate align-middle hover:text-muted-foreground"
+            title="Click to copy URL"
+          >
+            {variable.value}
+          </span>
+        )}
       </TableCell>
       <TableCell>
         <DropdownMenu>
@@ -520,16 +526,36 @@ function EditValueDialog({
   onOpenChange: (v: boolean) => void;
   variable: Variable;
 }) {
+  const isArray = variable.valueType === "array";
   const [value, setValue] = useState(variable.value);
+  const [items, setItems] = useState<string[]>(() =>
+    isArray ? JSON.parse(variable.value) : []
+  );
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    if (open) setValue(variable.value);
-  }, [open, variable.value]);
+    if (open) {
+      setValue(variable.value);
+      setItems(isArray ? JSON.parse(variable.value) : []);
+    }
+  }, [open, variable.value, isArray]);
+
+  function addItem() {
+    setItems((prev) => [...prev, ""]);
+  }
+
+  function removeItem(index: number) {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateItem(index: number, val: string) {
+    setItems((prev) => prev.map((item, i) => (i === index ? val : item)));
+  }
 
   function handleSave() {
+    const saveValue = isArray ? JSON.stringify(items) : value;
     startTransition(async () => {
-      const result = await updateVariable(variable.id, value);
+      const result = await updateVariable(variable.id, saveValue, variable.valueType);
       if (result?.error) {
         toast.error("Failed to update variable");
       } else {
@@ -538,6 +564,10 @@ function EditValueDialog({
       }
     });
   }
+
+  const unchanged = isArray
+    ? JSON.stringify(items) === variable.value
+    : value === variable.value;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -558,25 +588,87 @@ function EditValueDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor={`value-${variable.id}`}>Value</Label>
-            <Input
-              id={`value-${variable.id}`}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSave();
-              }}
-            />
+            {isArray ? (
+              <div className="space-y-2">
+                {items.map((item, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      value={item}
+                      onChange={(e) => updateItem(index, e.target.value)}
+                      placeholder={`Item ${index + 1}`}
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="shrink-0 cursor-pointer"
+                      onClick={() => removeItem(index)}
+                      disabled={items.length === 1}
+                      aria-label="Remove item"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full cursor-pointer"
+                  onClick={addItem}
+                  disabled={items.length >= 50}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add item
+                </Button>
+              </div>
+            ) : (
+              <Input
+                id={`value-${variable.id}`}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSave();
+                }}
+              />
+            )}
           </div>
           <Button
             className="w-full"
             onClick={handleSave}
-            disabled={isPending || value === variable.value}
+            disabled={isPending || unchanged}
           >
             {isPending ? "Saving..." : "Save"}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ArrayPreview({ value, onClick }: { value: string; onClick: () => void }) {
+  let items: string[] = [];
+  try {
+    items = JSON.parse(value);
+  } catch {
+    return <span className="text-muted-foreground">[invalid array]</span>;
+  }
+  const preview = items.slice(0, 2).join(", ");
+  const hasMore = items.length > 2;
+  return (
+    <span
+      onClick={onClick}
+      className="inline-flex cursor-pointer items-center gap-1.5 hover:text-muted-foreground"
+      title="Click to copy URL"
+    >
+      <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+        [{items.length}]
+      </span>
+      <span className="max-w-[220px] truncate text-muted-foreground">
+        {preview}
+        {hasMore ? ", …" : ""}
+      </span>
+    </span>
   );
 }

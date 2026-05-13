@@ -11,6 +11,7 @@ import {
   moveVariableSchema,
   variableIdsSchema,
   bulkMoveSchema,
+  arrayValueSchema,
 } from "@/lib/validations";
 import { eq, and, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -23,12 +24,21 @@ export async function createVariable(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
+  const valueTypeRaw = formData.get("valueType") ?? "text";
   const parsed = createVariableSchema.safeParse({
     key: formData.get("key"),
     value: formData.get("value"),
+    valueType: valueTypeRaw,
   });
   if (!parsed.success) {
     return { error: parsed.error.flatten().fieldErrors };
+  }
+
+  if (parsed.data.valueType === "array") {
+    const itemsParsed = arrayValueSchema.safeParse(JSON.parse(parsed.data.value));
+    if (!itemsParsed.success) {
+      return { error: { value: itemsParsed.error.flatten().formErrors } };
+    }
   }
 
   const folderIdRaw = formData.get("folderId");
@@ -64,6 +74,7 @@ export async function createVariable(formData: FormData) {
     userId: session.user.id,
     key: parsed.data.key,
     value: parsed.data.value,
+    valueType: parsed.data.valueType,
     folderId,
   });
 
@@ -72,13 +83,20 @@ export async function createVariable(formData: FormData) {
   return { success: true };
 }
 
-export async function updateVariable(id: string, value: string) {
+export async function updateVariable(id: string, value: string, valueType: string = "text") {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
-  const parsed = updateVariableSchema.safeParse({ id, value });
+  const parsed = updateVariableSchema.safeParse({ id, value, valueType });
   if (!parsed.success) {
     return { error: parsed.error.flatten().fieldErrors };
+  }
+
+  if (parsed.data.valueType === "array") {
+    const itemsParsed = arrayValueSchema.safeParse(JSON.parse(parsed.data.value));
+    if (!itemsParsed.success) {
+      return { error: { value: itemsParsed.error.flatten().formErrors } };
+    }
   }
 
   const existing = await db
@@ -93,7 +111,7 @@ export async function updateVariable(id: string, value: string) {
 
   await db
     .update(variables)
-    .set({ value: parsed.data.value, updatedAt: new Date() })
+    .set({ value: parsed.data.value, valueType: parsed.data.valueType, updatedAt: new Date() })
     .where(
       and(eq(variables.id, parsed.data.id), eq(variables.userId, session.user.id))
     );
